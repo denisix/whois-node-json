@@ -1,0 +1,33 @@
+{
+  "name": "whois-node-json",
+  "version": "0.0.1",
+  "description": "Node-WHOIS-JSON - WHOIS fetch & output in JSON, slim & fast, without any dependencies",
+  "main": "whois.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "repository": "git@github.com:denisix/node-whois-json.git",
+  "deprecated": false,
+  "keywords": [
+    "whois",
+    "node-whois",
+    "whois-node",
+    "whois-json",
+    "json-whois",
+    "asn",
+    "netblock",
+    "subnet",
+    "domain whois",
+    "asn whois",
+    "as",
+    "as whois",
+    "whois info",
+    "whois query",
+    "netwhois",
+    "json whois",
+    "json",
+    "fast whois"
+  ],
+  "author": "denisix",
+  "license": "MIT"
+}
