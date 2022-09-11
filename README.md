@@ -1,3 +1,8 @@
+![NPM](https://img.shields.io/npm/l/whois-node-json?style=flat-square)
+![npm bundle size](https://img.shields.io/bundlephobia/min/whois-node-json?style=flat-square)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/denisix/whois-node-json?style=flat-square)
+![Lines of code](https://img.shields.io/tokei/lines/github/denisix/whois-node-json?style=flat-square)
+
 # whois-node-json
 Whois-Node-JSON - WHOIS fetch &amp; output in JSON, slim &amp; fast, without any dependencies
 
