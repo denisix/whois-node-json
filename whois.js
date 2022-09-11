@@ -31,7 +31,7 @@ const map = {
 }
 
 const parseDomain = raw => {
-  const o = {}
+  const o = { raw }
   let ok = false
   raw.split('\n').forEach(i => {
     const m = i.trim().match(/^(\w.{1,50}):\s+(\S.+)$/)
@@ -82,7 +82,7 @@ const parseBlocks = raw => {
   let m,
     k,
     v,
-    main = {},
+    main = { raw },
     o = {}
 
   const lines = raw.split('\n')
