@@ -1,6 +1,6 @@
 {
   "name": "whois-node-json",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Node-WHOIS-JSON - WHOIS fetch & output in JSON, slim & fast, without any dependencies",
   "main": "whois.js",
   "scripts": {
