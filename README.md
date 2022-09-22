@@ -14,7 +14,8 @@ Whois-Node-JSON - WHOIS fetch &amp; output in JSON, slim &amp; fast, without any
 - pre-bootstraped IANA RIRs ASNs / network prefixes / whoises map to make requests even faster!
 - retries & timeouts
 - automatically follows refering whois servers
-- supports queries for: **domain** / **ASN** / **networks**
+- supports **domain** / **ASN** / **networks** queries
+- supports **IPv6** resources
 
 ## API
 - as simple as possible, query can be any domain, ASN or IPv4 address/network:
@@ -24,6 +25,7 @@ const whois = require('whois-node-json')
 whois('google.com').then(result => console.log('domain whois:', result))
 whois('AS3333').then(result => console.log('asn whois:', result))
 whois('193.0.0.0/21').then(result => console.log('network whois:', result))
+whois('2001:67c:2e8:22::c100:68b').then(result => console.log('network ipv6:', result))
 ```
 
 ## Examples

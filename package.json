@@ -1,6 +1,6 @@
 {
   "name": "whois-node-json",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Node-WHOIS-JSON - WHOIS fetch & output in JSON, slim & fast, without any dependencies",
   "main": "whois.js",
   "scripts": {
@@ -26,7 +26,13 @@
     "netwhois",
     "json whois",
     "json",
-    "fast whois"
+    "fast whois",
+    "whois ipv6",
+    "ipv6 whois",
+    "net6 whois",
+    "whois net6",
+    "whois ipv6 network",
+    "ipv6 info"
   ],
   "author": "denisix",
   "license": "MIT"
