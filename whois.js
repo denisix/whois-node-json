@@ -125,11 +125,11 @@ const parseBlocks = raw => {
   return main
 }
 
-const whois = async (domain, timeout = 10000) => {
-  let whoisServer, prevWhois, raw, rir, isBlock, m
+const whois = async (q, timeout = 10000) => {
+  let whoisServer, prevWhois, raw, rir, isBlock, isCIDR, m
 
   // ASN
-  m = domain.match(/^as(\d+)$/i)
+  m = q.match(/^as(\d+)$/i)
   if (m && m[1]) {
     isBlock = true
     rir = Object.keys(iana).find(i => {
@@ -146,16 +146,18 @@ const whois = async (domain, timeout = 10000) => {
     whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
   } else {
     // IPv4
-    m = domain.match(/^(\d+)\.\d+\.\d+\.\d+/)
+    m = q.match(/^(\d+)\.\d+\.\d+\.\d+(\/?\d*)/)
     if (m && m[1]) {
       isBlock = true
+      isCIDR = !!m[2]
       rir = Object.keys(iana).find(i => iana[i].includes(+m[1]))
       whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
     } else {
       // IPv6
-      m = domain.match(/^([a-fA-F0-9:]+)/)
+      m = q.match(/^([a-fA-F0-9:]+)(\/?)/)
       if (m && m[1]) {
         isBlock = true
+        isCIDR = !!m[2]
 
         const ip = m[1]
           .replace('::', ':0000:')
@@ -166,8 +168,6 @@ const whois = async (domain, timeout = 10000) => {
             return a + new Array(16 - out.length).fill(0).join('') + out
           }, '')
 
-        // console.log('- ip6 ->', ip)
-
         const rir = Object.keys(iana).find(i =>
           iana[i].find(n => {
             if (typeof n !== 'string') return
@@ -175,25 +175,21 @@ const whois = async (domain, timeout = 10000) => {
             if (!pref) return
             net = parseInt(net, 16).toString(2)
             net = new Array((net.length > 16 ? 32 : 16) - net.length).fill(0).join('') + net
-            // console.log('- net->', net, pref, net.length)
-            // console.log('- ip ->', ip, '->', ip.startsWith(net), '\n')
             return ip.startsWith(net)
           })
         )
 
-        // console.log('- ip6 rir ->', rir)
         whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
-      } else {
-        // unknown format?
       }
     }
   }
 
   do {
     prevWhois = whoisServer
-    raw = await req(domain, whoisServer, timeout)
+    if (isCIDR && whoisServer.indexOf('arin') > -1) q = 'r = ' + q
+    raw = await req(q, whoisServer, timeout)
 
-    if (!raw || !raw.length || raw.length < domain.length * 3 || raw.match(/try again/i)) return false
+    if (!raw || !raw.length || raw.length < q.length * 3 || raw.match(/try again/i)) return false
 
     const m = raw.match(/whois(\s*server|):\s+([\w\d.-]+)/i)
     if (m && m[2]) whoisServer = m[2].toLowerCase()
