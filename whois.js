@@ -1,7 +1,7 @@
 const net = require('net')
 const iana = require('./iana.json')
 
-const req = async (domain, whoisServer = 'whois.verisign-grs.com', timeout = 10000) => {
+const req = async (query, whoisServer = 'whois.verisign-grs.com', timeout = 10000) => {
   const buf = await new Promise(r => {
     const s = net.connect({ host: whoisServer, port: 43 }, () => {
       let b = Buffer.alloc(0)
@@ -10,7 +10,7 @@ const req = async (domain, whoisServer = 'whois.verisign-grs.com', timeout = 100
         .on('data', c => (b = Buffer.concat([b, c])))
         .on('end', () => r(b))
         .on('error', e => r(e))
-        .write(domain + '\n')
+        .write(query + '\n')
     })
   })
 
@@ -27,7 +27,8 @@ const map = {
   asname: 'as_name',
   ashandle: 'aut_num',
   asnumber: 'aut_num',
-  netrange: 'inetnum'
+  netrange: 'inetnum',
+  e_mail: 'email',
 }
 
 const parseDomain = raw => {
@@ -125,18 +126,18 @@ const parseBlocks = raw => {
   return main
 }
 
-const whois = async (q, timeout = 10000) => {
+// reqFn - custom network request function
+const whois = async (q, { timeout = 10000, reqFn } = {}) => {
   let whoisServer, prevWhois, raw, rir, isBlock, isCIDR, m
 
-  // ASN
-  m = q.match(/^as(\d+)$/i)
-  if (m && m[1]) {
+  // ASN?
+  if ((m = q.match(/^as(\d+)$/i)) && m && m[1]) {
     isBlock = true
     rir = Object.keys(iana).find(i => {
       if (iana[i].includes(m[1])) return true
       iana[i].find(x => {
-        if (typeof x !== 'string') return false
         if (x === m[1]) return true
+        if (typeof x !== 'string') return false
 
         const r = x.split('-')
         if (+r[0] <= +m[1] && +m[1] <= +r[1]) return true
@@ -144,50 +145,81 @@ const whois = async (q, timeout = 10000) => {
     })
 
     whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
-  } else {
-    // IPv4
-    m = q.match(/^(\d+)\.\d+\.\d+\.\d+(\/?\d*)/)
-    if (m && m[1]) {
-      isBlock = true
-      isCIDR = !!m[2]
-      rir = Object.keys(iana).find(i => iana[i].includes(+m[1]))
-      whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
-    } else {
-      // IPv6
-      m = q.match(/^([a-fA-F0-9:]+)(\/?)/)
-      if (m && m[1]) {
-        isBlock = true
-        isCIDR = !!m[2]
+  }
 
-        const ip = m[1]
-          .replace('::', ':0000:')
-          .split(':')
-          .reduce((a, b, c) => {
-            if (c > 1) return a
-            const out = parseInt(b, 16).toString(2)
-            return a + new Array(16 - out.length).fill(0).join('') + out
-          }, '')
+  // IPv4?
+  if (!whoisServer && (m = q.match(/^(\d+)\.\d+\.\d+\.\d+(\/?\d*)/)) && m && m[1]) {
+    isBlock = true
+    isCIDR = !!m[2]
+    rir = Object.keys(iana).find(i => iana[i].includes(+m[1]))
+    whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
+  }
 
-        const rir = Object.keys(iana).find(i =>
-          iana[i].find(n => {
-            if (typeof n !== 'string') return
-            let [net, pref] = n.split('/')
-            if (!pref) return
-            net = parseInt(net, 16).toString(2)
-            net = new Array((net.length > 16 ? 32 : 16) - net.length).fill(0).join('') + net
-            return ip.startsWith(net)
-          })
-        )
+  // IPv6?
+  if (!whoisServer && (m = q.match(/^([a-fA-F0-9]+:[a-fA-F0-9:]+)(\/?)/)) && m && m[1]) {
+    isBlock = true
+    isCIDR = !!m[2]
 
-        whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
-      }
-    }
+    const ip = m[1]
+      .replace('::', ':0000:')
+      .split(':')
+      .reduce((a, b, c) => {
+        if (c > 1) return a
+        const out = parseInt(b, 16).toString(2)
+        return a + new Array(16 - out.length).fill(0).join('') + out
+      }, '')
+
+    const rir = Object.keys(iana).find(i =>
+      iana[i].find(n => {
+        if (typeof n !== 'string') return
+        let [net, pref] = n.split('/')
+        if (!pref) return
+        net = parseInt(net, 16).toString(2)
+        net = new Array((net.length > 16 ? 32 : 16) - net.length).fill(0).join('') + net
+        return ip.startsWith(net)
+      })
+    )
+
+    whoisServer = rir ? `whois.${rir}.net` : 'whois.iana.org'
+  }
+
+  // ORG / nichdl ?
+  if (!whoisServer && (m = q.match(/-(RIPE|AP|APNIC|ARIN|AFRINIC|LACNIC)$/i)) && m && m[1]) {
+    isBlock = true
+    if (m[1] === 'AP') m[1] = 'APNIC'
+    whoisServer = `whois.${m[1].toLowerCase()}.net`
+  }
+
+  // not domain, but maybe org?
+  if (!whoisServer && q.indexOf('.') === -1) {
+    isBlock = true
+    whoisServer = `whois.arin.net`
+    // q = 'a ' + q
   }
 
   do {
     prevWhois = whoisServer
-    if (isCIDR && whoisServer.indexOf('arin') > -1) q = 'r = ' + q
-    raw = await req(q, whoisServer, timeout)
+
+    // preformat, special cases for different RIRs:
+    if (typeof q === 'string') q = q.toLowerCase()
+    if (typeof q === 'number') q = `as${q}`
+    if (q.indexOf('-B') !== 0 && q.indexOf('.') === -1 && whoisServer && !whoisServer.match(/iana|arin|lacnic/)) q = `-B ${q}`
+    if (whoisServer === 'whois.arin.net') {
+      if (isCIDR) {
+        q = 'r = ' + q
+      } else if (q.match(/\d+.\d+.\d+.\d+/)) {
+        q = 'n + ' + q
+      } else {
+        q = `${q.match(/^as\d+/) ? 'a ' : 'o '}${q}`
+      }
+    }
+
+    // support custom request function
+    if (typeof reqFn === 'function') {
+      raw = await reqFn(q, whoisServer, timeout)
+    } else {
+      raw = await req(q, whoisServer, timeout)
+    }
 
     if (!raw || !raw.length || raw.length < q.length * 3 || raw.match(/try again/i)) return false
 

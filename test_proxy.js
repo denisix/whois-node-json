@@ -1,4 +1,35 @@
+const socks = require('socks').SocksClient
 const whois = require('./')
+
+const reqFn = (query, whoisServer = 'whois.verisign-grs.com', timeout = 10000) => new Promise(r => {
+  setTimeout(r, timeout)
+  let buf = ''
+  socks.createConnection({
+    proxy: {
+      ipaddress: '127.0.0.1',
+      port: 9050,
+      type: 5
+    },
+    command: 'connect',
+    destination: {
+      host: whoisServer,
+      port: 43
+    },
+    timeout: 5000,
+  }, (err, info) => {
+    if (err || !info?.socket) return r(console.log('- err connect', err))
+
+    const conn = info.socket
+
+    conn.setEncoding('utf8')
+      .on('data', data => buf += data)
+      .on('end', () => r(buf))
+      .on('timeout', () => r(console.error('whois err:', 'connection timeout.')))
+      .on('error', err => r(console.error('whois err:', JSON.stringify(err))))
+
+    conn.write(query)
+  })
+})
 
 const tests = [
   ['google.com', i => false || i?.registrant_organization === 'Google LLC'],
@@ -44,8 +75,8 @@ const tests = [
   ['ORG-GTBP1-AFRINIC', i => i?.org?.email.includes('networksupport@gtbank.com')],
 ]
 
-if (process.argv[2]) return whois(process.argv[2]).then(ret => console.log('ret ->', ret))
+if (process.argv[2]) return whois(process.argv[2], { reqFn }).then(ret => console.log('ret ->', ret))
 
 tests.forEach(([q, f]) => {
-  whois(q).then(ret => console.log(`- query [${q}] ->`, f(ret) || ret))
+  whois(q, { reqFn }).then(ret => console.log(`- query [${q}] ->`, f(ret) || ret))
 })
