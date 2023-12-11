@@ -2,6 +2,7 @@ const whois = require('./')
 
 const tests = [
   ['google.com', i => false || i?.registrant_organization === 'Google LLC'],
+  ['facebook.com', i => false || i?.admin_email === 'domain@fb.com'],
 
   // RIPE
   ['AS3333', i => i?.aut_num?.aut_num === 3333 && i?.aut_num?.as_name === 'RIPE-NCC-AS'],

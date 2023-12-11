@@ -10,7 +10,7 @@ const req = async (query, whoisServer = 'whois.verisign-grs.com', timeout = 1000
         .on('data', c => (b = Buffer.concat([b, c])))
         .on('end', () => r(b))
         .on('error', e => r(e))
-        .write(query + '\n')
+        .write(query + '\r\n')
     })
   })
 
